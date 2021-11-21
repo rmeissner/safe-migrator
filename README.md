@@ -3,6 +3,7 @@
 This project is a simple web interface that migrates a Safe on the **BSC** network to a singleton that can receive native BNB.
 
 :warning: **Only use this if you know what you are doing** :warning:
+
 :warning: **The author of this repository doesn't provide any guarantees** :warning:
 
 ## Motivation

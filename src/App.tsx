@@ -1,89 +1,111 @@
-import Onboard from 'bnc-onboard'
-import { ethers } from 'ethers'
-import { Button } from '@mui/material';
-import SafeServiceClient from '@gnosis.pm/safe-service-client';
-import Safe, { EthersAdapter } from '@gnosis.pm/safe-core-sdk';
-
-const contractNetworks = {
-  // bsc
-  56: {
-    multiSendAddress: '0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761',
-    safeMasterCopyAddress: '0x3E5c63644E683549055b9Be8653de26E0B4CD36E',
-    safeProxyFactoryAddress: '0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2'
-  },
-}
-const migrationAddress = "0x82b71f39d719cC971B80E7A7B6c0c2aF96a5abC1"
-const migrationInterface = new ethers.utils.Interface([
-  "function migrate() public",
-  "function revertMigration() public"
-])
-const rpcUrl = "https://bsc-dataseed.binance.org/"
-const serviceUrl = "https://safe-transaction.bsc.gnosis.io/"
-const safeAddress = "0x11c49ed9bd5Df313037c23B4801e5D6993ED9c72"
-const serviceSdk = new SafeServiceClient(serviceUrl)
-let userProvider: ethers.providers.Web3Provider | undefined
-const onboard = Onboard({
-  networkId: 56,
-  subscriptions: {
-    wallet: wallet => {
-      if(wallet.provider)
-        userProvider = new ethers.providers.Web3Provider(wallet.provider)
-      else 
-        userProvider = undefined
-    }
-  }
-});
-
-const migrate = async (): Promise<void> => {
-  await onboard.walletSelect()
-  await onboard.walletCheck()
-  const signer = userProvider?.getSigner()
-  if (!signer) throw Error("No Signer connected")
-  const senderAddress = await signer.getAddress()
-  console.log({ senderAddress })
-  if (!senderAddress) throw Error("No Wallet connected")
-  const safeInfo = await serviceSdk.getSafeInfo(safeAddress)
-  console.log({ safeInfo })
-  if (safeInfo.owners.indexOf(senderAddress) < 0) throw Error("Use is not an owner")
-  const ethAdapter = new EthersAdapter({
-    ethers,
-    signer
-  })
-  const safe = await Safe.create({ ethAdapter, safeAddress, contractNetworks })
-  const safeTransaction = await safe.createTransaction({
-    to: migrationAddress,
-    value: "0",
-    data: migrationInterface.encodeFunctionData("migrate"),
-    operation: 1
-  })
-  const safeTxHash = await safe.getTransactionHash(safeTransaction)
-  await safe.signTransaction(safeTransaction)
-  console.log("Signed tx")
-  console.log(safeTransaction)
-  await serviceSdk.proposeTransaction({
-    safeAddress,
-    senderAddress,
-    safeTransaction,
-    safeTxHash
-  })
-  console.log("Proposed tx")
-}
+import { Button, CircularProgress, Container, Link, TextField, Typography } from '@mui/material';
+import './App.css';
+import txDetailsImg from './images/tx_details.png';
+import { migrate, revertMigration } from './logic/migrate';
+import { useState } from 'react';
+import { SafeStatus } from './logic/types';
+import { loadSafeStatus } from './logic/status';
+import { buildSafeTxLink } from './logic/constants';
 
 function App() {
 
+  const [safeAddress, setSafeAddress] = useState("")
+  const [txLink, setTxLink] = useState("")
+  const [safeStatus, setSafeStatus] = useState<SafeStatus | undefined>(undefined)
+  const [showProgress, setShowProgress] = useState(false)
+  const [migrationStatus, setMigrationStatus] = useState("")
+
   const handleMigrationButton = async () => {
     try {
-      await migrate()
+      setShowProgress(true)
+      const safeTxHash = await migrate(safeAddress, setMigrationStatus)
+      setTxLink(buildSafeTxLink(safeAddress, safeTxHash))
     } catch (e) {
       console.error(e)
+      setMigrationStatus("" + e)
+    } finally {
+      setShowProgress(false)
+    }
+  }
+
+  const handleRevertButton = async () => {
+    try {
+      setShowProgress(true)
+      const safeTxHash = await revertMigration(safeAddress, setMigrationStatus)
+      setTxLink(buildSafeTxLink(safeAddress, safeTxHash))
+    } catch (e) {
+      console.error(e)
+      setMigrationStatus("" + e)
+    } finally {
+      setShowProgress(false)
+    }
+  }
+
+  const handleAddressInput = async (address: string) => {
+    setSafeAddress(address)
+    setSafeStatus(undefined)
+    try {
+      setShowProgress(true)
+      setSafeStatus(await loadSafeStatus(address))
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setShowProgress(false)
     }
   }
 
   return (
     <div className="App">
-      <header className="App-header">
-      </header>
-      <Button onClick={() => handleMigrationButton()}>Migrate</Button>
+      <Typography variant="h4">Safe BSC Migrator</Typography>
+      <Typography variant="h6">Motivation</Typography>
+      <Typography variant="body1" maxWidth={800} padding={1}>
+        With this web app it is possible to migrate to and from a version of Safe that does not emit any events when receiving native BNB to work around an issue on <b>BSC</b> that would make it under certain conditions impossible to receive native BNB from another contract.
+      </Typography>
+      <Typography variant="body1" maxWidth={800} padding={1}>
+        More information can be found in the <Link href="https://github.com/rmeissner/safe-migrator#safe-migrator">repository</Link> of this project.
+      </Typography>
+      <Typography variant="h6">Guide</Typography>
+      <Typography variant="body1" maxWidth={800} padding={1}>
+        You require access to one of the owner wallets of the Safe that should be migrated.
+      </Typography>
+      <Typography variant="body1" maxWidth={800} padding={1}>
+        Once an action has been triggered on the interface a Safe transaction hash needs to be signed. 
+          Note: This step will NEVER trigger a transaction, therefore there is no need to own any BNB.
+      </Typography>
+      <Typography variant="body1" maxWidth={800} padding={1}>
+        The transaction will be visible in the Gnosis Safe web interface and should be inspected before execution.
+      </Typography>
+      <Typography variant="h6">Transaction Details</Typography>
+      <Typography variant="body1" maxWidth={800} padding={1}>
+        The transaction triggered will use <b>delegate call</b> to interact with <Link href="https://www.bscscan.com/address/0x82b71f39d719cC971B80E7A7B6c0c2aF96a5abC1#code">0x82b71f39d719cC971B80E7A7B6c0c2aF96a5abC1</Link> and contain <b>0 BNB</b> of value. It will call either the method <b>migrate</b> or <b>revertMigration</b>.
+      </Typography>
+      <Typography variant="body1" maxWidth={800}>
+        <img src={txDetailsImg} alt="Transaction Details" />
+      </Typography>
+      <Typography variant="caption">Example transaction details</Typography>
+      <Typography variant="h6">Actions</Typography>
+      <TextField value={safeAddress} onChange={(e) => handleAddressInput(e.target.value)} label="Safe Address" />
+      <Container sx={{paddingTop: 4, textAlign: "center", maxWidth: 800, display: "flex", flexDirection: "column", alignItems: "center"}}>
+        {
+          !!migrationStatus && (
+            <Typography variant="body1">
+              {migrationStatus}
+            </Typography>
+          )
+        }
+        {
+          showProgress && (<CircularProgress />)
+        }
+        { !!txLink && (
+          <Link href={txLink}>Show transaction in Safe interface</Link>
+        )}
+        { !txLink && !showProgress && safeStatus && !safeStatus.fixEnabled && (
+          <Button onClick={() => handleMigrationButton()}>Migrate To Workaround Version</Button>
+        )}
+        { !txLink && !showProgress && safeStatus && safeStatus.fixEnabled && (
+          <Button onClick={() => handleRevertButton()}>Migrate To Official Version</Button>
+        )}
+      </Container>
     </div>
   );
 }
