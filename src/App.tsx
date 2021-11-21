@@ -44,6 +44,8 @@ function App() {
   const handleAddressInput = async (address: string) => {
     setSafeAddress(address)
     setSafeStatus(undefined)
+    setTxLink("")
+    setMigrationStatus("")
     try {
       setShowProgress(true)
       setSafeStatus(await loadSafeStatus(address))
@@ -97,7 +99,7 @@ function App() {
           showProgress && (<CircularProgress />)
         }
         { !!txLink && (
-          <Link href={txLink}>Show transaction in Safe interface</Link>
+          <Link href={txLink} target="_blank">Show transaction in Safe interface</Link>
         )}
         { !txLink && !showProgress && safeStatus && !safeStatus.fixEnabled && (
           <Button onClick={() => handleMigrationButton()}>Migrate To Workaround Version</Button>
