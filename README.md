@@ -1,46 +1,59 @@
-# Getting Started with Create React App
+# Safe Migrator
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project is a simple web interface that migrates a Safe on the **BSC** network to a singleton that can receive native BNB.
 
-## Available Scripts
+:warning: **Only use this if you know what you are doing** :warning:
+:warning: **The author of this repository doesn't provide any guarantees** :warning:
 
-In the project directory, you can run:
+## Motivation
 
-### `yarn start`
+With version 1.3.0 of the Safe contracts an event has been added that is emitted each time the contract receives the native coin via a (internal) transaction. The addition of this event increased the gas costs when receiving the native coin. If the sending account is a contract that uses the Solidity `transfer` or `send` functionality to sent the native coin theses additional gas costs will result in an error. On Ethereum mainnet this can be solved useing the [access list feature (EIP-2930)](https://eips.ethereum.org/EIPS/eip-2930). As the Binance Smart Chain has **not** been updated yet to include this EIP another workaround was required.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+For more information read our [helpcenter article](https://help.gnosis-safe.io/en/articles/5249851-why-can-t-i-transfer-eth-from-a-contract-into-a-safe) or the [Consensys Diligence blog post](https://consensys.net/diligence/blog/2019/09/stop-using-soliditys-transfer-now/) on this.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Work Around
 
-### `yarn test`
+To work around the issue an adjusted version of the 1.3.0 contracts has been deployed that does not emit an event when receiving the native coin. The address of this contract is [`0x4e6A0E034318Bec795c5E1dD4817A424767265A7`](https://www.bscscan.com/address/0x4e6A0E034318Bec795c5E1dD4817A424767265A7#code). As of 1.3.0 it is not possible to simply change the singleton (formerly master copy) address of the Safe. Therefore another contract was deployed to migrate a Safe to this version using delegate call. This migration contract is available at [`0x82b71f39d719cC971B80E7A7B6c0c2aF96a5abC1`](https://www.bscscan.com/address/0x82b71f39d719cC971B80E7A7B6c0c2aF96a5abC1#code).
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Note: The BscFixMigration contract assumes that a Gnosis Safe Proxy has been used. This proxy stores the singleton address in the storage slot 0.
 
-### `yarn build`
+## Web App
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+As the Gnosis Safe web interface does not allow to create delegate call transaction it is required to use an alternative script or interface to propose this transaction. This is the purpose of this project. Once an owner is connected to the web app it is possible to propose a migration transaction to the **BSC** Safe interface. If this transaction is executed the Safe will be using the alternative singleton version. With that version it is possible to receive native BNB via `transfer` and `send` again, but it will not be registered by the indexing service anymore as an incoming transaction (the balance will still update after a while).
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Getting Started
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+* Checkout the project
+```sh
+git clone https://github.com/rmeissner/safe-migrator.git
+```
 
-### `yarn eject`
+* Open the project folder
+```sh
+cd safe-migrator
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+* Install correct node version (v16.9.1)
+```sh
+nvm install
+```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+* Install dependencies
+```sh
+yarn
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+* Start web app
+```sh
+yarn start
+```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+* Open web app on [http://localhost:3000](http://localhost:3000)
 
-## Learn More
+## Hosted version
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+A hosted version is available on [https://rimeissner.dev/safe-migrator](https://rimeissner.dev/safe-migrator)
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+
+## Security and Liability
+All contracts are WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
