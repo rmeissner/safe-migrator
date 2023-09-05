@@ -20,5 +20,5 @@ export const serviceUrl = "https://safe-transaction-bsc.safe.global/"
 export const serviceSdk = new SafeServiceClient(serviceUrl)
 
 export const buildSafeTxLink = (safeAddress: string, safeTxHash: string): string => {
-    return `https://app.safe.global/transactions/tx?safe=gno:${safeAddress}&id=${safeTxHash}`
+    return `https://app.safe.global/transactions/tx?safe=bnb:${safeAddress}&id=${safeTxHash}`
 }
