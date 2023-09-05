@@ -16,9 +16,9 @@ export const migrationInterface = new ethers.utils.Interface([
     "function revertMigration() public"
 ])
 export const rpcUrl = "https://bsc-dataseed.binance.org/"
-export const serviceUrl = "https://safe-transaction.bsc.gnosis.io/"
+export const serviceUrl = "https://safe-transaction-bsc.safe.global/"
 export const serviceSdk = new SafeServiceClient(serviceUrl)
 
 export const buildSafeTxLink = (safeAddress: string, safeTxHash: string): string => {
-    return `https://gnosis-safe.io/app/bnb:${safeAddress}/transactions/${safeTxHash}`
+    return `https://app.safe.global/transactions/tx?safe=gno:${safeAddress}&id=${safeTxHash}`
 }
