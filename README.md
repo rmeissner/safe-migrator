@@ -1,4 +1,4 @@
-:warning: This repository has been archived :warning:
+# :warning: This repository has been archived :warning:
 
 [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) and [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930) have been activated on BNC, therefore the solutions descripted in the [help center article](https://help.safe.global/en/articles/40813-why-can-t-i-transfer-eth-from-a-contract-into-a-safe) of the Safe project can be used.
 
